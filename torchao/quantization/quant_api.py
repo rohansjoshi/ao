@@ -2040,6 +2040,7 @@ class FbgemmConfig(AOBaseConfig):
        weight_dtype (torch.dtype): weight dtype of the kernel
        output_dtype (torch.dtype): output dtype of the kernel
        group_size (int): The group size for weight
+       preshuffle (bool): whether preshuffle the weights or not
     """
 
     input_dtype: torch.dtype
@@ -2067,7 +2068,9 @@ def _(module: torch.nn.Module, config: FbgemmConfig) -> torch.nn.Module:
     ):
         if config.preshuffle:
             weight = Int4GroupwisePreshuffleTensor.from_float(
-                module.weight, config.block_size
+                module.weight,
+                config.block_size,
+                activation_dtype="bf16",
             )
         else:
             weight = to_fbgemm_int4(
@@ -2077,6 +2080,20 @@ def _(module: torch.nn.Module, config: FbgemmConfig) -> torch.nn.Module:
         module.weight = torch.nn.Parameter(weight, requires_grad=False)
         module.extra_repr = types.MethodType(_linear_extra_repr, module)
         return module
+    if (
+        (config.input_dtype == e4m3_dtype)
+        and (config.weight_dtype == torch.int4)
+        and (config.output_dtype == torch.bfloat16)
+    ):
+        if config.preshuffle:
+            weight = Int4GroupwisePreshuffleTensor.from_float(
+                module.weight,
+                config.block_size,
+                activation_dtype="fp8",
+            )
+            module.weight = torch.nn.Parameter(weight, requires_grad=False)
+            module.extra_repr = types.MethodType(_linear_extra_repr, module)
+            return module
     elif (
         (config.input_dtype == e4m3_dtype)
         and (config.weight_dtype == e4m3_dtype)
