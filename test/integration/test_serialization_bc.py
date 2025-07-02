@@ -18,6 +18,7 @@ from torchao.utils import _is_fbgemm_genai_gpu_available, is_sm_at_least_90
 
 _MODEL_NAMES = [
     "torchao-testing/opt-125m-float8dq-row-fbgemm",
+    "torchao-testing/opt-125m-int4wo-preshuffle",
 ]
 
 
